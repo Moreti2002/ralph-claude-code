@@ -2,7 +2,12 @@
 
 ![Ralph](ralph.webp)
 
-Ralph is an autonomous AI agent loop that runs [Amp](https://ampcode.com) repeatedly until all PRD items are complete. Each iteration is a fresh Amp instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+Ralph is an autonomous AI agent loop that runs a command-line AI tool repeatedly until all PRD items are complete. Each iteration is a fresh instance with clean context. Memory persists via git history, `progress.txt`, and `prd.json`.
+
+This version is adapted to work with multiple AI CLIs:
+- **Amp** (`ralph-amp.sh`)
+- **Claude** (`ralph-claude.sh`)
+- **Gemini** (`ralph-gemini.sh`)
 
 Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
@@ -10,7 +15,10 @@ Based on [Geoffrey Huntley's Ralph pattern](https://ghuntley.com/ralph/).
 
 ## Prerequisites
 
-- [Amp CLI](https://ampcode.com) installed and authenticated
+- One of the supported AI CLIs installed and authenticated:
+  - [Amp CLI](https://ampcode.com)
+  - [Anthropic's Claude CLI](https://github.com/anthropics/anthropic-sdk-python/tree/main/src/anthropic_cli)
+  - [Google's Gemini CLI](https://github.com/google/gemini-cli)
 - `jq` installed (`brew install jq` on macOS)
 - A git repository for your project
 
@@ -23,12 +31,12 @@ Copy the ralph files into your project:
 ```bash
 # From your project root
 mkdir -p scripts/ralph
-cp /path/to/ralph/ralph.sh scripts/ralph/
+cp /path/to/ralph/ralph-*.sh scripts/ralph/
 cp /path/to/ralph/prompt.md scripts/ralph/
-chmod +x scripts/ralph/ralph.sh
+chmod +x scripts/ralph/ralph-*.sh
 ```
 
-### Option 2: Install skills globally
+### Option 2: Install skills globally (for Amp)
 
 Copy the skills to your Amp config for use across all projects:
 
@@ -37,7 +45,7 @@ cp -r skills/prd ~/.config/amp/skills/
 cp -r skills/ralph ~/.config/amp/skills/
 ```
 
-### Configure Amp auto-handoff (recommended)
+### Configure Amp auto-handoff (recommended for Amp)
 
 Add to `~/.config/amp/settings.json`:
 
@@ -73,11 +81,24 @@ This creates `prd.json` with user stories structured for autonomous execution.
 
 ### 3. Run Ralph
 
+Choose the script corresponding to your desired AI tool:
+
+**For Amp:**
 ```bash
-./scripts/ralph/ralph.sh [max_iterations]
+./scripts/ralph/ralph-amp.sh [max_iterations]
 ```
 
-Default is 10 iterations.
+**For Claude:**
+```bash
+./scripts/ralph/ralph-claude.sh [max_iterations]
+```
+
+**For Gemini:**
+```bash
+./scripts/ralph/ralph-gemini.sh [max_iterations]
+```
+
+The default is 10 iterations.
 
 Ralph will:
 1. Create a feature branch (from PRD `branchName`)
@@ -93,14 +114,16 @@ Ralph will:
 
 | File | Purpose |
 |------|---------|
-| `ralph.sh` | The bash loop that spawns fresh Amp instances |
-| `prompt.md` | Instructions given to each Amp instance |
-| `prd.json` | User stories with `passes` status (the task list) |
-| `prd.json.example` | Example PRD format for reference |
-| `progress.txt` | Append-only learnings for future iterations |
-| `skills/prd/` | Skill for generating PRDs |
-| `skills/ralph/` | Skill for converting PRDs to JSON |
-| `flowchart/` | Interactive visualization of how Ralph works |
+| `ralph-amp.sh`| The bash loop that spawns fresh **Amp** instances. |
+| `ralph-claude.sh`| The bash loop that spawns fresh **Claude** instances. |
+| `ralph-gemini.sh`| The bash loop that spawns fresh **Gemini** instances. |
+| `prompt.md` | Instructions given to each AI instance. |
+| `prd.json` | User stories with `passes` status (the task list). |
+| `prd.json.example` | Example PRD format for reference. |
+| `progress.txt` | Append-only learnings for future iterations. |
+| `skills/prd/` | (Amp) Skill for generating PRDs. |
+| `skills/ralph/` | (Amp) Skill for converting PRDs to JSON. |
+| `flowchart/` | Interactive visualization of how Ralph works. |
 
 ## Flowchart
 
@@ -120,7 +143,7 @@ npm run dev
 
 ### Each Iteration = Fresh Context
 
-Each iteration spawns a **new Amp instance** with clean context. The only memory between iterations is:
+Each iteration spawns a **new AI instance** with clean context. The only memory between iterations is:
 - Git history (commits from previous iterations)
 - `progress.txt` (learnings and context)
 - `prd.json` (which stories are done)
@@ -139,58 +162,3 @@ Too big (split these):
 - "Build the entire dashboard"
 - "Add authentication"
 - "Refactor the API"
-
-### AGENTS.md Updates Are Critical
-
-After each iteration, Ralph updates the relevant `AGENTS.md` files with learnings. This is key because Amp automatically reads these files, so future iterations (and future human developers) benefit from discovered patterns, gotchas, and conventions.
-
-Examples of what to add to AGENTS.md:
-- Patterns discovered ("this codebase uses X for Y")
-- Gotchas ("do not forget to update Z when changing W")
-- Useful context ("the settings panel is in component X")
-
-### Feedback Loops
-
-Ralph only works if there are feedback loops:
-- Typecheck catches type errors
-- Tests verify behavior
-- CI must stay green (broken code compounds across iterations)
-
-### Browser Verification for UI Stories
-
-Frontend stories must include "Verify in browser using dev-browser skill" in acceptance criteria. Ralph will use the dev-browser skill to navigate to the page, interact with the UI, and confirm changes work.
-
-### Stop Condition
-
-When all stories have `passes: true`, Ralph outputs `<promise>COMPLETE</promise>` and the loop exits.
-
-## Debugging
-
-Check current state:
-
-```bash
-# See which stories are done
-cat prd.json | jq '.userStories[] | {id, title, passes}'
-
-# See learnings from previous iterations
-cat progress.txt
-
-# Check git history
-git log --oneline -10
-```
-
-## Customizing prompt.md
-
-Edit `prompt.md` to customize Ralph's behavior for your project:
-- Add project-specific quality check commands
-- Include codebase conventions
-- Add common gotchas for your stack
-
-## Archiving
-
-Ralph automatically archives previous runs when you start a new feature (different `branchName`). Archives are saved to `archive/YYYY-MM-DD-feature-name/`.
-
-## References
-
-- [Geoffrey Huntley's Ralph article](https://ghuntley.com/ralph/)
-- [Amp documentation](https://ampcode.com/manual)
